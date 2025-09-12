@@ -1,0 +1,13 @@
+numpy>=1.21.0
+opencv-python>=4.5.0
+scikit-image>=0.18.0
+pillow>=8.0.0
+pandas>=1.3.0
+tqdm>=4.60.0
+matplotlib>=3.3.0
+scipy>=1.7.0
+pyyaml>=5.4.0
+
+# Optional dependencies for advanced metrics
+# piq>=0.7.0  # For BRISQUE scores
+# imquality>=1.2.0  # For NIQE scores
