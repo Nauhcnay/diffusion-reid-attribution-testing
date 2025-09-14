@@ -69,6 +69,25 @@ def main():
         help="Enable verbose output"
     )
     
+    parser.add_argument(
+        "--segmentation", 
+        choices=["auto", "sam2", "sam", "grabcut", "basic"],
+        default="auto",
+        help="Segmentation method for foreground mask (auto: try SAM2->SAM->GrabCut)"
+    )
+    
+    parser.add_argument(
+        "--no_advanced_segmentation",
+        action="store_true",
+        help="Disable advanced segmentation (SAM2/SAM), use only basic methods"
+    )
+
+    parser.add_argument(
+        "--enable-cloth-editing",
+        action="store_true",
+        help="Enable cloth editing transforms (requires GPU and additional dependencies)"
+    )
+    
     args = parser.parse_args()
     
     # Validate input paths
@@ -81,6 +100,32 @@ def main():
     # Load and validate configuration
     try:
         config = load_config(args.config, args.max_examples_per_family)
+
+        # Enable cloth editing if requested
+        if args.enable_cloth_editing:
+            # Check basic requirements before enabling
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    if args.verbose:
+                        print("🎨 Enabling cloth editing transforms")
+                        print(f"   🔧 GPU: {torch.cuda.get_device_name(0)}")
+                        memory_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
+                        print(f"   💾 VRAM: {memory_gb:.1f} GB")
+                    config.transforms['cloth_edit_casual'].enabled = True
+                    config.transforms['cloth_edit_multiple'].enabled = True
+                else:
+                    print("⚠️  Warning: CUDA not available - cloth editing requires GPU")
+                    print("   💡 Transforms will be enabled but will fail during execution")
+                    print("   💡 Run 'python check_cloth_editing_requirements.py' for details")
+                    config.transforms['cloth_edit_casual'].enabled = True
+                    config.transforms['cloth_edit_multiple'].enabled = True
+            except ImportError:
+                print("⚠️  Warning: PyTorch not available - cloth editing requires PyTorch with CUDA")
+                print("   💡 Run 'python check_cloth_editing_requirements.py' for details")
+                config.transforms['cloth_edit_casual'].enabled = True
+                config.transforms['cloth_edit_multiple'].enabled = True
+
     except Exception as e:
         print(f"Error loading configuration: {e}", file=sys.stderr)
         return 1
@@ -119,12 +164,19 @@ def main():
             verbose=args.verbose
         )
         
+        # Pass segmentation preferences to runner
+        segmentation_config = {
+            'method': args.segmentation,
+            'use_advanced': not args.no_advanced_segmentation and args.segmentation != "basic"
+        }
+        
         results = runner.run_diagnostics(
             input_image=input_image,
             input_path=args.input,
             outdir=outdir,
             mask=mask,
-            bg_bank=args.bg_bank
+            bg_bank=args.bg_bank,
+            segmentation_config=segmentation_config
         )
         
         print(f"Diagnostics completed successfully. Results saved to: {outdir}")
@@ -145,10 +197,13 @@ def main():
         return 0
         
     except Exception as e:
-        print(f"Error running diagnostics: {e}", file=sys.stderr)
+        print(f"\n❌ Error running diagnostics: {e}", file=sys.stderr)
         if args.verbose:
+            print("\n📋 Full error trace:", file=sys.stderr)
             import traceback
             traceback.print_exc()
+        else:
+            print("💡 Use --verbose for detailed error information", file=sys.stderr)
         return 1
 
 

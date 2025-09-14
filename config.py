@@ -165,7 +165,22 @@ class DiagnosticsConfig:
                 'kernel_sizes': [3, 5],
                 'iterations': [1, 2]
             }),
-            'morphology_fill_holes': TransformConfig()
+            'morphology_fill_holes': TransformConfig(),
+
+            # G) Cloth editing transforms (requires GPU)
+            'cloth_edit_casual': TransformConfig(
+                enabled=False,  # Disabled by default due to GPU/model requirements
+                params={
+                    'seeds': [42, 123, 456]
+                }
+            ),
+            'cloth_edit_multiple': TransformConfig(
+                enabled=False,  # Disabled by default due to GPU/model requirements
+                params={
+                    'num_variants': [2, 3],
+                    'seeds': [42, 123]
+                }
+            )
         }
     
     def _get_default_output_config(self) -> Dict[str, Any]:

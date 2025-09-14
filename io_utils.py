@@ -228,13 +228,16 @@ def create_threshold_mask(image: np.ndarray, method: str = 'otsu') -> Optional[n
         return None
 
 
-def get_foreground_mask(image: np.ndarray, provided_mask: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+def get_foreground_mask(image: np.ndarray, provided_mask: Optional[np.ndarray] = None, 
+                       use_advanced: bool = True, verbose: bool = False) -> Optional[np.ndarray]:
     """
     Get foreground mask using provided mask or automatic methods.
     
     Args:
         image: RGB image as uint8 numpy array
         provided_mask: Optional provided binary mask
+        use_advanced: Whether to try advanced segmentation (SAM2/SAM)
+        verbose: Enable verbose logging
         
     Returns:
         Binary mask as bool array, or None if no valid mask can be obtained
@@ -242,7 +245,8 @@ def get_foreground_mask(image: np.ndarray, provided_mask: Optional[np.ndarray] =
     if provided_mask is not None:
         # Validate provided mask dimensions
         if provided_mask.shape[:2] != image.shape[:2]:
-            warnings.warn("Provided mask dimensions don't match image, trying to resize")
+            if verbose:
+                warnings.warn("Provided mask dimensions don't match image, trying to resize")
             try:
                 provided_mask = cv2.resize(
                     provided_mask.astype(np.uint8), 
@@ -255,7 +259,21 @@ def get_foreground_mask(image: np.ndarray, provided_mask: Optional[np.ndarray] =
         if provided_mask is not None:
             return provided_mask
     
-    # Try GrabCut first
+    # Try advanced segmentation first if enabled
+    if use_advanced:
+        try:
+            from segmentation import get_advanced_foreground_mask
+            mask = get_advanced_foreground_mask(image, provided_mask, use_advanced=True, verbose=verbose)
+            if mask is not None:
+                return mask
+        except ImportError:
+            if verbose:
+                print("Advanced segmentation not available, using fallback methods")
+        except Exception as e:
+            if verbose:
+                print(f"Advanced segmentation failed: {e}")
+    
+    # Try GrabCut
     mask = create_grabcut_mask(image)
     if mask is not None:
         return mask

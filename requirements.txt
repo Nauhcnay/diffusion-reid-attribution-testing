@@ -11,3 +11,13 @@ pyyaml>=5.4.0
 # Optional dependencies for advanced metrics
 # piq>=0.7.0  # For BRISQUE scores
 # imquality>=1.2.0  # For NIQE scores
+
+# Optional dependencies for advanced segmentation
+# torch>=2.0.0  # Required for SAM/SAM2
+# torchvision>=0.15.0  # Required for SAM/SAM2
+
+# SAM2 (Segment Anything v2) - install from source
+# git+https://github.com/facebookresearch/segment-anything-2.git
+
+# Original SAM (Segment Anything) - alternative option
+# git+https://github.com/facebookresearch/segment-anything.git

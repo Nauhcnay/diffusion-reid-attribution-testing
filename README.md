@@ -38,12 +38,47 @@ A production-quality CLI tool that runs a battery of image-domain diagnostics fo
 - Light Erode/Dilate (iterations ∈ {1,2})
 - Fill holes before compositing
 
+**G) Cloth editing transforms (Optional)**
+- AI-powered clothing modification using Qwen-Image
+- Semantic cloth type analysis and substitution
+- Multiple clothing variant generation for robustness testing
+
 ## Installation
 
+### Basic Installation
+
 1. Clone this repository
-2. Install dependencies:
+2. Install core dependencies:
 ```bash
 pip install -r requirements.txt
+```
+
+### Advanced Segmentation Setup (Optional)
+
+For state-of-the-art foreground segmentation using SAM2 or SAM:
+
+```bash
+python setup_advanced_segmentation.py
+```
+
+This will install PyTorch, SAM2/SAM packages, and download model checkpoints.
+
+### Cloth Editing Setup (Optional)
+
+For AI-powered clothing modification using Qwen-Image:
+
+```bash
+python setup_cloth_editing.py
+```
+
+**Requirements:**
+- NVIDIA GPU with 8GB+ VRAM (tested with RTX 4090)
+- CUDA-compatible PyTorch
+- ~20GB of model downloads
+
+**Quick requirements check:**
+```bash
+python check_cloth_editing_requirements.py
 ```
 
 ## Usage
@@ -76,6 +111,9 @@ python reid_diagnostics.py \
 - `--seed, -s`: Random seed for deterministic results (default: 123)
 - `--max_examples_per_family, -n`: Maximum number of examples per transform family (optional)
 - `--verbose, -v`: Enable verbose output (optional)
+- `--segmentation`: Segmentation method for automatic mask generation (choices: auto, sam2, sam, grabcut, basic; default: auto)
+- `--no_advanced_segmentation`: Disable advanced segmentation, use only basic methods (optional)
+- `--enable-cloth-editing`: Enable AI-powered cloth editing transforms (requires GPU) (optional)
 
 ## Configuration
 
@@ -116,6 +154,96 @@ Generate an example configuration:
 ```bash
 python -c "from config import save_example_config; save_example_config('example_config.yaml')"
 ```
+
+## Advanced Segmentation
+
+The tool supports multiple segmentation methods for automatic foreground mask generation:
+
+### Segmentation Methods
+
+1. **SAM2 (Segment Anything v2)** - State-of-the-art segmentation
+   ```bash
+   python reid_diagnostics.py --input image.jpg --outdir results/ --segmentation sam2
+   ```
+
+2. **SAM (original Segment Anything)** - High-quality segmentation  
+   ```bash
+   python reid_diagnostics.py --input image.jpg --outdir results/ --segmentation sam
+   ```
+
+3. **GrabCut** - Traditional computer vision method
+   ```bash
+   python reid_diagnostics.py --input image.jpg --outdir results/ --segmentation grabcut
+   ```
+
+4. **Auto mode** (default) - Tries SAM2 → SAM → GrabCut in order
+   ```bash
+   python reid_diagnostics.py --input image.jpg --outdir results/ --segmentation auto
+   ```
+
+5. **Basic methods only** - Disables SAM2/SAM, uses only GrabCut/thresholding
+   ```bash
+   python reid_diagnostics.py --input image.jpg --outdir results/ --no_advanced_segmentation
+   ```
+
+## Cloth Editing
+
+The tool supports AI-powered clothing modification for robustness testing:
+
+### Usage
+
+```bash
+# Enable cloth editing (requires GPU setup)
+python reid_diagnostics.py --input image.jpg --outdir results/ --enable-cloth-editing
+```
+
+### Features
+
+- **Automatic cloth analysis**: Extracts current clothing description from image
+- **Smart cloth selection**: Chooses diverse clothing types for maximum variation
+- **Multiple variants**: Generates 2-4 different clothing options per transform
+- **Memory optimized**: Uses CPU offloading and VRAM management for efficient inference
+
+### Requirements
+
+| Component | Requirement | Notes |
+|-----------|-------------|-------|
+| **GPU** | NVIDIA 8GB+ VRAM | Tested with RTX 4090 (24GB) |
+| **CUDA** | CUDA-compatible PyTorch | Auto-installed by setup script |
+| **Models** | Qwen-Image + Captioning | ~20GB download (one-time) |
+| **Memory** | 23GB+ VRAM during inference | Uses sequential CPU offload |
+
+### Performance
+
+- **Setup time**: 10-30 minutes (model download)
+- **First run**: ~2 minutes (model loading)
+- **Per variant**: 60-80 seconds
+- **Cached runs**: Faster model loading
+
+### Segmentation Methods Comparison
+
+| Method | Requires | Model Size | Quality | Speed |
+|--------|----------|------------|---------|--------|
+| **SAM2** | PyTorch + SAM2 models | 38MB-2.4GB | Excellent | Medium |
+| **SAM** | PyTorch + SAM models | 91MB-2.6GB | Excellent | Slow |
+| **GrabCut** | OpenCV only | - | Good | Fast |
+| **Basic** | OpenCV only | - | Fair | Very Fast |
+
+### Setup Scripts Summary
+
+| Feature | Script | Requirements | Install Time |
+|---------|--------|--------------|--------------|
+| **Basic ReID** | `pip install -r requirements.txt` | Python 3.10+ | 1-2 minutes |
+| **Advanced Segmentation** | `python setup_advanced_segmentation.py` | PyTorch | 5-10 minutes |
+| **Cloth Editing** | `python setup_cloth_editing.py` | NVIDIA GPU 8GB+ | 10-30 minutes |
+
+### Benefits of Advanced Segmentation
+
+- **Higher accuracy**: SAM2/SAM provide much better person segmentation
+- **No manual tuning**: Works automatically without parameter adjustment  
+- **Handles complex scenes**: Performs well with cluttered backgrounds
+- **Semantic understanding**: Recognizes person vs. other objects
+- **Graceful fallback**: Automatically falls back to simpler methods if models unavailable
 
 ## Outputs
 

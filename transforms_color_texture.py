@@ -163,14 +163,38 @@ def apply_nonlocal_means_scikit(image: np.ndarray, h: float, patch_size: int = 5
     # Apply NL-Means (scikit-image version)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # Suppress scikit-image warnings
-        denoised = denoise_nl_means(
-            float_image,
-            h=h / 255.0,  # Convert to float range
-            fast_mode=True,
-            patch_size=patch_size,
-            patch_distance=patch_distance,
-            multichannel=True
-        )
+        try:
+            # Try new API first (channel_axis parameter for newer versions)
+            denoised = denoise_nl_means(
+                float_image,
+                h=h / 255.0,  # Convert to float range
+                fast_mode=True,
+                patch_size=patch_size,
+                patch_distance=patch_distance,
+                channel_axis=-1
+            )
+        except TypeError:
+            try:
+                # Fall back to multichannel parameter for older versions
+                denoised = denoise_nl_means(
+                    float_image,
+                    h=h / 255.0,  # Convert to float range
+                    fast_mode=True,
+                    patch_size=patch_size,
+                    patch_distance=patch_distance,
+                    multichannel=True
+                )
+            except TypeError:
+                # Final fallback - apply to each channel separately
+                denoised = np.zeros_like(float_image)
+                for i in range(float_image.shape[2]):
+                    denoised[:, :, i] = denoise_nl_means(
+                        float_image[:, :, i],
+                        h=h / 255.0,
+                        fast_mode=True,
+                        patch_size=patch_size,
+                        patch_distance=patch_distance
+                    )
     
     result_uint8 = float_to_uint8(denoised)
     
@@ -212,35 +236,43 @@ def apply_bilateral_strong(image: np.ndarray, diameter: int, sigma_color: float,
 def apply_tv_denoising(image: np.ndarray, weight: float, max_iter: int = 200) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
     Apply Total Variation denoising for texture suppression.
-    
+
     Args:
         image: Input RGB image (uint8)
         weight: Denoising weight (higher = more denoising)
-        max_iter: Maximum number of iterations
-        
+        max_iter: Maximum number of iterations (deprecated in newer scikit-image)
+
     Returns:
         TV-denoised image and parameters dictionary
     """
     float_image = uint8_to_float(image)
-    
+
     # Apply TV denoising to each channel
     result = np.zeros_like(float_image)
     for i in range(3):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # Suppress convergence warnings
-            result[:, :, i] = denoise_tv_chambolle(
-                float_image[:, :, i], 
-                weight=weight,
-                max_iter=max_iter
-            )
-    
+            try:
+                # Try with max_iter parameter (older scikit-image)
+                result[:, :, i] = denoise_tv_chambolle(
+                    float_image[:, :, i],
+                    weight=weight,
+                    max_iter=max_iter
+                )
+            except TypeError:
+                # Fall back to newer API without max_iter
+                result[:, :, i] = denoise_tv_chambolle(
+                    float_image[:, :, i],
+                    weight=weight
+                )
+
     result_uint8 = float_to_uint8(result)
-    
+
     params = {
         'weight': weight,
         'max_iter': max_iter
     }
-    
+
     return result_uint8, params
 
 

@@ -188,7 +188,19 @@ def apply_unsharp_mask(image: np.ndarray, amount: float, radius: float, threshol
     float_image = uint8_to_float(image)
     
     # Create Gaussian blur
-    blurred = filters.gaussian(float_image, sigma=radius, multichannel=True)
+    # Handle both old and new scikit-image versions
+    try:
+        # Try new API first (channel_axis parameter for newer versions)
+        blurred = filters.gaussian(float_image, sigma=radius, channel_axis=-1)
+    except TypeError:
+        try:
+            # Fall back to multichannel parameter for older versions
+            blurred = filters.gaussian(float_image, sigma=radius, multichannel=True)
+        except TypeError:
+            # Final fallback - apply to each channel separately
+            blurred = np.zeros_like(float_image)
+            for i in range(float_image.shape[2]):
+                blurred[:, :, i] = filters.gaussian(float_image[:, :, i], sigma=radius)
     
     # Create unsharp mask
     mask = float_image - blurred
