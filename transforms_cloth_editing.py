@@ -242,11 +242,11 @@ class ClothEditingPipeline:
 
             for i, cloth_item in enumerate(cloth_candidates):
                 try:
-                    # Create editing prompt
-                    prompt = f"Change the person's clothing to {cloth_item}"
+                    # Create detailed editing prompt for better results
+                    prompt = f"Change the person's clothing to {cloth_item}, keeping the person's face, pose, and background unchanged. Make the clothing change look natural and realistic."
 
-                    # Apply cloth editing with memory optimization
-                    generator = torch.Generator(device=self.device)
+                    # Apply cloth editing using correct Qwen-Image-Edit API
+                    generator = torch.Generator(device="cpu")  # Generator should be on CPU
                     if seed is not None:
                         generator.manual_seed(seed + i)
 
@@ -254,20 +254,16 @@ class ClothEditingPipeline:
                         # Clear cache before inference
                         torch.cuda.empty_cache()
 
-                        # Use memory-efficient inference with smaller image if needed
-                        max_size = 512  # Limit image size for memory efficiency
-                        height = min(pil_image.height, max_size)
-                        width = min(pil_image.width, max_size)
+                        # Use official Qwen-Image-Edit API parameters
+                        inputs = {
+                            "image": pil_image,
+                            "prompt": prompt,
+                            "generator": generator,
+                            "true_cfg_scale": 4.0,  # Correct parameter name
+                            "num_inference_steps": 50  # Higher quality with more steps
+                        }
 
-                        output = self.editing_pipeline(
-                            image=pil_image,
-                            prompt=prompt,
-                            generator=generator,
-                            num_inference_steps=15,  # Further reduced for memory
-                            guidance_scale=4.0,
-                            height=height,
-                            width=width
-                        )
+                        output = self.editing_pipeline(**inputs)
                         edited_image = output.images[0]
 
                         # Clear cache after inference
